@@ -1,0 +1,107 @@
+{
+  "extends": "@innocenzi/eslint-config/vue",
+  "overrides": [
+    {
+      "rules": {
+        "vue/component-name-in-template-casing": [
+          "error",
+          "kebab-case",
+          {
+            "registeredComponentsOnly": false,
+            "ignores": [
+              "Form",
+              "DotLottiePlayer"
+            ]
+          }
+        ],
+        "vue/max-attributes-per-line": ["error", {
+          "singleline": {
+            "max": 1
+          },
+          "multiline": {
+            "max": 1
+          }
+        }]
+      },
+      "files": [
+        "*.vue",
+        "*.ts"
+      ]
+    }
+  ],
+  "plugins": [
+    "import",
+    "import-newlines"
+  ],
+  "rules": {
+    "@typescript-eslint/no-use-before-define": ["error", {
+      "functions": false,
+      "classes": false,
+      "variables": false,
+      "allowNamedExports": false
+    }],
+    "import-newlines/enforce": ["error", { "items": 10, "max-len": 300}],
+    "@typescript-eslint/consistent-type-imports": [
+      "error",
+      {
+        "prefer": "type-imports",
+        "fixStyle": "separate-type-imports"
+      }
+    ],
+    "comma-dangle": ["error", {
+      "arrays": "only-multiline",
+      "objects": "only-multiline",
+      "imports": "only-multiline",
+      "exports": "only-multiline",
+      "functions": "ignore"
+    }],
+    "semi": [2, "never"],
+    "quotes": [2, "single"],
+    "@typescript-eslint/no-unused-vars": ["error", {
+      "vars": "all",
+      "args": "after-used",
+      "ignoreRestSiblings": true
+    }],
+    "import/order": [
+      "error",
+      {
+        "groups": [
+          ["builtin", "external"],
+          ["internal"],
+          ["parent", "sibling", "index"],
+          "type"
+        ],
+        "newlines-between": "never",
+        "alphabetize": {
+          "order": "asc",
+          "caseInsensitive": true
+        },
+        "pathGroups": [
+          { "pattern": "vue", "group": "external", "position": "before" },
+          { "pattern": "vue/**", "group": "external", "position": "before" },
+          { "pattern": "nuxt", "group": "external", "position": "before" },
+          { "pattern": "nuxt/**", "group": "external", "position": "before" },
+          { "pattern": "~icons/**", "group": "external", "position": "before" },
+          { "pattern": "types", "group": "internal", "position": "before" },
+          { "pattern": "@/types/**", "group": "internal", "position": "before" },
+          { "pattern": "@/config/**", "group": "internal", "position": "before" },
+          { "pattern": "@/lib/**", "group": "internal", "position": "before" },
+          { "pattern": "@/composables/**", "group": "internal", "position": "before" },
+          { "pattern": "@/components/ui/**", "group": "internal", "position": "before" },
+          { "pattern": "@/components/**", "group": "internal", "position": "before" },
+          { "pattern": "[./]**", "group": "parent", "position": "before" }
+        ],
+        "pathGroupsExcludedImportTypes": [
+          "builtin",
+          "types"
+        ]
+      }
+    ]
+  },
+  "settings": {
+    "tailwindcss": {
+      "callees": ["cn"],
+      "config": "tailwind.config.js"
+    }
+  }
+}
