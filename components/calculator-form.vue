@@ -39,6 +39,7 @@ type Summary = {
 		yearly: number
 		monthly: number
 	}
+	[key: string]: any
 }
 
 type TimeFrameType = 'Per Year' | 'Per Month' | 'Per Hour'
@@ -156,12 +157,13 @@ const calculateNetAndTaxes = (gross: number, taxRate: number) => {
 	}
 }
 
-const generatePresetFromBase = (base: Summary, taxRate: number): Summary => {
+const generatePresetFromBase = (base: Summary, months: number, taxRate: number): Summary => {
+	const yearly = base.monthly.gross * months
 	return {
 		hourly: calculateNetAndTaxes(base.hourly.gross, taxRate),
 		daily: calculateNetAndTaxes(base.daily.gross, taxRate),
 		monthly: calculateNetAndTaxes(base.monthly.gross, taxRate),
-		yearly: calculateNetAndTaxes(base.yearly.gross, taxRate),
+		yearly: calculateNetAndTaxes(yearly, taxRate),
 		taxes: {
 			yearly: base.yearly.gross - (base.yearly.gross * (1 - taxRate)),
 			monthly: base.monthly.gross - (base.monthly.gross * (1 - taxRate)),
@@ -198,13 +200,27 @@ const tooltipValue = (label: number, value: number) => {
 	}
 }
 
-const summary = computed(() => {
+const generateCompareAgainstEmployee = (base: Summary): Summary => {
+	const perYear = base.monthly.gross * currentPreset.totalPaymentsMonthsForFreelancer
+	const perMonth = perYear / currentPreset.totalPaymentMonthsForEmployee
+	const perDay = perMonth / currentPreset.workingDays
+	const perHour = perDay / currentPreset.workingHours
+
+	return {
+		hourly: calculateNetAndTaxes(perHour, currentPreset.taxes.freelance),
+		daily: calculateNetAndTaxes(perDay, currentPreset.taxes.freelance),
+		monthly: calculateNetAndTaxes(perMonth, currentPreset.taxes.freelance),
+		yearly: calculateNetAndTaxes(perYear, currentPreset.taxes.freelance),
+	}
+}
+
+const summary = computed<{ [key: string]: Summary }>(() => {
 	const perDay = hourlyRate.value * currentPreset.workingHours
 	const perHour = hourlyRate.value
 	const perMonth = hourlyRate.value * currentPreset.workingDays * currentPreset.workingHours
 	const perYear = perMonth * currentPreset.monthsInYear
 
-	const base = {
+	const base: Summary = {
 		hourly: {
 			gross: perHour,
 			net: perHour,
@@ -225,35 +241,58 @@ const summary = computed(() => {
 
 	return {
 		base,
-		freelance: generatePresetFromBase(base, currentPreset.taxes.freelance),
-		employee: generatePresetFromBase(base, currentPreset.taxes.employee)
+		freelance: generatePresetFromBase(base, currentPreset.totalPaymentsMonthsForFreelancer, currentPreset.taxes.freelance),
+		employee: generatePresetFromBase(base, currentPreset.totalPaymentMonthsForEmployee, currentPreset.taxes.employee),
+		compare: generateCompareAgainstEmployee(base),
 	}
 })
 
 const sections = computed(() => {
 	const baseTable = generateTableFromSummary(summary.value.base, 'Base')
 	const freelanceTable = generateTableFromSummary(summary.value.freelance, 'Freelancer')
+	const freelanceCompareTable = generateTableFromSummary(summary.value.compare, 'Compare')
 	const employeeTable = generateTableFromSummary(summary.value.employee, 'Employee')
 
 	return [
 		{
 			key: 'summary',
 			label: 'Summary',
-			description: 'Gross Income',
-			table: baseTable,
+			sections: [
+				{
+					description: 'Gross Income',
+					key: 'gross-income',
+					table: baseTable,
+				}
+			]
 		},
 		{
 			key: 'freelancer',
 			label: 'Freelancer',
-			description: `Prices after taxes ${currentPreset.taxes.freelance}%`,
-			table: freelanceTable
+			sections: [
+				{
+					key: 'freelancer-income',
+					description: `Prices after taxes ${currentPreset.taxes.freelance}% for ${currentPreset.totalPaymentsMonthsForFreelancer} months`,
+					table: freelanceTable,
+				},
+				{
+					key: 'freelancer-compare-income',
+					description: `Prices after taxes ${currentPreset.taxes.freelance}% for ${currentPreset.totalPaymentMonthsForEmployee} months`,
+					table: freelanceCompareTable
+				}
+			]
 		},
 		{
 			key: 'employee',
 			label: 'Employee',
 			description: `Prices after taxes ${currentPreset.taxes.employee}%`,
-			table: employeeTable,
-		}
+			sections: [
+				{
+					key: 'employee-income',
+					description: `Prices after taxes ${currentPreset.taxes.employee}% for ${currentPreset.totalPaymentMonthsForEmployee} months`,
+					table: employeeTable,
+				}
+			]
+		},
 	]
 })
 
@@ -298,7 +337,7 @@ const sections = computed(() => {
 								class="text-xs cursor-pointer text-gray-500 dark:text-gray-400 select-none"
 								@click="isShowingAdvanced = !isShowingAdvanced"
 							>
-								{{ isShowingAdvanced ? 'Show Simplified' : 'Show Advanced' }}
+								{{ isShowingAdvanced ? 'Hide Options' : 'Show Options' }}
 							</p>
 						</template>
 					</u-divider>
@@ -326,21 +365,21 @@ const sections = computed(() => {
 							</template>
 						</u-form-group>
 						<u-form-group
-							:label="`Nº Payments (Local/Freelancing)`"
+							:label="`Nº Payments Freelancing/Employee`"
 							help="The amount of payments you received as an employee in the country. Ex in portugal is 14"
 							required
 						>
 							<template #default>
 								<div class="grid grid-cols-1 sm:grid-cols-2 gap-x-1 gap-y-2">
 									<u-input
-										v-model="currentPreset.totalPaymentMonthsForEmployee"
+										v-model="currentPreset.totalPaymentsMonthsForFreelancer"
 										type="number"
 										min="1"
 										max="20"
 										placeholder="14"
 									/>
 									<u-input
-										v-model="currentPreset.totalPaymentsMonthsForFreelancer"
+										v-model="currentPreset.totalPaymentMonthsForEmployee"
 										type="number"
 										min="1"
 										max="20"
@@ -382,38 +421,44 @@ const sections = computed(() => {
 					class="w-full"
 				>
 					<template #item="{ item }">
-						<p
-							v-if="item.description"
-							class="text-center text-xs -mt-2- text-gray-500"
+						<template
+							v-for="childSection in item.sections"
+							:key="childSection.key"
 						>
-							{{ item.description }}
-						</p>
-						<u-table
-							:rows="item.table"
-							:ui="{
-								divide: 'divide-none',
-								thead: 'hidden',
-								td: {
-									padding: 'py-1 px-2'
-								}
-							}"
-						>
-							<template #value-data="{ row }">
-								<div class="text-right w-full">
-									<u-tooltip :popper="{ arrow: true }">
-										<template #default>
-											{{ row.value.text }}
-										</template>
-										<template #text>
-											<span
-												v-if="row.value.tooltip"
-												class="text-gray-500 dark:text-gray-400 cursor-pointer"
-											>{{ row.value.tooltip }}</span>
-										</template>
-									</u-tooltip>
-								</div>
-							</template>
-						</u-table>
+							<p
+								v-if="childSection.description"
+								class="text-center text-xs -mt-2- text-gray-500"
+							>
+								{{ childSection.description }}
+							</p>
+							<u-table
+								v-if="childSection.table"
+								:rows="childSection.table"
+								:ui="{
+									divide: 'divide-none',
+									thead: 'hidden',
+									td: {
+										padding: 'py-1 px-2'
+									}
+								}"
+							>
+								<template #value-data="{ row }">
+									<div class="text-right w-full">
+										<u-tooltip :popper="{ arrow: true }">
+											<template #default>
+												{{ row.value.text }}
+											</template>
+											<template #text>
+												<span
+													v-if="row.value.tooltip"
+													class="text-gray-500 dark:text-gray-400 cursor-pointer"
+												>{{ row.value.tooltip }}</span>
+											</template>
+										</u-tooltip>
+									</div>
+								</template>
+							</u-table>
+						</template>
 					</template>
 				</u-tabs>
 			</template>
