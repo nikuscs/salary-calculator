@@ -17,7 +17,7 @@ type Preset = {
 		employee: number
 	}
 	currency: string
-	totalPaymentMonthsForDependent: number
+	totalPaymentMonthsForEmployee: number
 	totalPaymentsMonthsForFreelancer: number
 	workingDays: number
 	workingHours: number
@@ -25,20 +25,21 @@ type Preset = {
 	taxTable?: TaxBracket[]
 }
 
-type Summary = {
-	perYear: number
-	perMonth: number
-	perHour: number
-	perDay: number
-	perYearWithoutTaxes: number
-	perMonthWithoutTaxes: number
-	perHourWithoutTaxes: number
-	perDayWithoutTaxes: number
-	taxesPerYear?: number
-	taxesPerMonth?: number
+type NetAndGross = {
+	gross: number
+	net: number
 }
 
-type SummaryKey = keyof Summary
+type Summary = {
+	hourly: NetAndGross
+	daily: NetAndGross
+	monthly: NetAndGross
+	yearly: NetAndGross
+	taxes?: {
+		yearly: number
+		monthly: number
+	}
+}
 
 type TimeFrameType = 'Per Year' | 'Per Month' | 'Per Hour'
 
@@ -60,26 +61,26 @@ const presets: Preset[] = [
 			employee: 34,
 		},
 		currency: '€',
-		totalPaymentMonthsForDependent: 14,
+		totalPaymentMonthsForEmployee: 14,
 		totalPaymentsMonthsForFreelancer: 11,
 		workingDays: 22,
 		workingHours: 8,
 		monthsInYear: 12,
-		taxTable: [
-			{ min: 0, max: 820, marginalTaxRate: 0, deductionFormula: '€0.00', effectiveMonthlyRate: 0 },
-			{ min: 820.01, max: 935, marginalTaxRate: 13.25, deductionFormula: '13.25% * 2.6 * (1.135,39 - R)', effectiveMonthlyRate: 5.9 },
-			{ min: 935.01, max: 1001, marginalTaxRate: 18, deductionFormula: '18% * 1.4 * (1.385,20 - R)', effectiveMonthlyRate: 8.3 },
-			{ min: 1001.01, max: 1123, marginalTaxRate: 18, deductionFormula: '€96.82', effectiveMonthlyRate: 9.4 },
-			{ min: 1123.01, max: 1765, marginalTaxRate: 26, deductionFormula: '€186.66', effectiveMonthlyRate: 15.4 },
-			{ min: 1765.01, max: 2057, marginalTaxRate: 32.75, deductionFormula: '€305.80', effectiveMonthlyRate: 17.9 },
-			{ min: 2057.01, max: 2664, marginalTaxRate: 37, deductionFormula: '€393.23', effectiveMonthlyRate: 22.2 },
-			{ min: 2664.01, max: 3193, marginalTaxRate: 38.72, deductionFormula: '€439.05', effectiveMonthlyRate: 25 },
-			{ min: 3193.01, max: 4173, marginalTaxRate: 40.05, deductionFormula: '€481.52', effectiveMonthlyRate: 28.5 },
-			{ min: 4173.01, max: 5470, marginalTaxRate: 41, deductionFormula: '€521.17', effectiveMonthlyRate: 31.5 },
-			{ min: 5470.01, max: 6540, marginalTaxRate: 42.7, deductionFormula: '€614.16', effectiveMonthlyRate: 33.3 },
-			{ min: 6540.01, max: 20067, marginalTaxRate: 44.95, deductionFormula: '€761.31', effectiveMonthlyRate: 41.2 },
-			{ min: 20067.01, max: null, marginalTaxRate: 47.17, deductionFormula: '€1.206,80', effectiveMonthlyRate: null },
-		]
+		// taxTable: [
+		// 	{ min: 0, max: 820, marginalTaxRate: 0, deductionFormula: '€0.00', effectiveMonthlyRate: 0 },
+		// 	{ min: 820.01, max: 935, marginalTaxRate: 13.25, deductionFormula: '13.25% * 2.6 * (1.135,39 - R)', effectiveMonthlyRate: 5.9 },
+		// 	{ min: 935.01, max: 1001, marginalTaxRate: 18, deductionFormula: '18% * 1.4 * (1.385,20 - R)', effectiveMonthlyRate: 8.3 },
+		// 	{ min: 1001.01, max: 1123, marginalTaxRate: 18, deductionFormula: '€96.82', effectiveMonthlyRate: 9.4 },
+		// 	{ min: 1123.01, max: 1765, marginalTaxRate: 26, deductionFormula: '€186.66', effectiveMonthlyRate: 15.4 },
+		// 	{ min: 1765.01, max: 2057, marginalTaxRate: 32.75, deductionFormula: '€305.80', effectiveMonthlyRate: 17.9 },
+		// 	{ min: 2057.01, max: 2664, marginalTaxRate: 37, deductionFormula: '€393.23', effectiveMonthlyRate: 22.2 },
+		// 	{ min: 2664.01, max: 3193, marginalTaxRate: 38.72, deductionFormula: '€439.05', effectiveMonthlyRate: 25 },
+		// 	{ min: 3193.01, max: 4173, marginalTaxRate: 40.05, deductionFormula: '€481.52', effectiveMonthlyRate: 28.5 },
+		// 	{ min: 4173.01, max: 5470, marginalTaxRate: 41, deductionFormula: '€521.17', effectiveMonthlyRate: 31.5 },
+		// 	{ min: 5470.01, max: 6540, marginalTaxRate: 42.7, deductionFormula: '€614.16', effectiveMonthlyRate: 33.3 },
+		// 	{ min: 6540.01, max: 20067, marginalTaxRate: 44.95, deductionFormula: '€761.31', effectiveMonthlyRate: 41.2 },
+		// 	{ min: 20067.01, max: null, marginalTaxRate: 47.17, deductionFormula: '€1.206,80', effectiveMonthlyRate: null },
+		// ]
 	},
 ]
 
@@ -88,7 +89,6 @@ const timeframe = ref<TimeFrameType>(timeFrameTypes[0])
 
 const currentPreset = reactive<Preset>({ ...presets[0] })
 const isShowingAdvanced = ref(false)
-const isShowingWithTaxes = ref(true)
 const decimals = ref(2)
 const hourlyRate = ref(currentPreset.defaultHourlyRate)
 const inputValue = ref(35000)
@@ -147,110 +147,112 @@ const onTimeFrameChanged = (newTimeFrame: TimeFrameType) => {
 // Watch if the user changed the value and convert it
 watch(() => inputValue.value, onValueChanged)
 
-const valueWithoutTaxes = (value: number, taxes: number) => value * taxes
-const getTaxPercentil = (rate: number) => (100 - rate) / 100
+const valueWithoutTaxes = (value: number, rate: number) => value * ((100 - rate) / 100)
 
-const summary = computed<Summary>(() => {
-	const perDay = hourlyRate.value * currentPreset.workingHours
-	const perHour = hourlyRate.value
-	const perMonth = hourlyRate.value * currentPreset.workingDays * currentPreset.workingHours
-	const perYear = perMonth * currentPreset.monthsInYear
-
+const calculateNetAndTaxes = (gross: number, taxRate: number) => {
 	return {
-		perYear,
-		perMonth,
-		perHour,
-		perDay,
-		perYearWithoutTaxes: valueWithoutTaxes(perYear, 1),
-		perMonthWithoutTaxes: valueWithoutTaxes(perMonth, 1),
-		perHourWithoutTaxes: valueWithoutTaxes(perHour, 1),
-		perDayWithoutTaxes: valueWithoutTaxes(perDay, 1),
-	}
-})
-
-const summaryFreeLancer = computed<Summary>(() => {
-	const perDay = hourlyRate.value * currentPreset.workingHours
-	const perHour = hourlyRate.value
-	const perMonth = hourlyRate.value * currentPreset.workingDays * currentPreset.workingHours
-	const perYear = perMonth * currentPreset.monthsInYear
-	const taxRate = getTaxPercentil(currentPreset.taxes.freelance)
-	return {
-		perYear,
-		perMonth,
-		perHour,
-		perDay,
-		perYearWithoutTaxes: valueWithoutTaxes(perYear, taxRate),
-		perMonthWithoutTaxes: valueWithoutTaxes(perMonth, taxRate),
-		perHourWithoutTaxes: valueWithoutTaxes(perHour, taxRate),
-		perDayWithoutTaxes: valueWithoutTaxes(perDay, taxRate),
-		taxesPerYear: roundDecimals(perYear * (taxRate / 100), 0),
-		taxesPerMonth: roundDecimals(perMonth * (taxRate / 100), 0),
-	}
-})
-
-const formatPriceLocally = (value: number) => {
-	return formatPrice(value, decimals.value, currentPreset.currency)
-}
-
-const tooltipWithVariantTaxes = (keyWithTax: SummaryKey, keyWithoutTaxes: SummaryKey, from: Ref<Summary>) => {
-	return {
-		tooltip: formatPriceLocally(isShowingWithTaxes.value ? from.value[keyWithoutTaxes] : from.value[keyWithoutTaxes]),
-		text: formatPriceLocally(isShowingWithTaxes.value ? from.value[keyWithTax] : from.value[keyWithoutTaxes]),
+		gross,
+		net: valueWithoutTaxes(gross, taxRate),
 	}
 }
 
-const summaryTable = computed(() => {
+const generatePresetFromBase = (base: Summary, taxRate: number): Summary => {
+	return {
+		hourly: calculateNetAndTaxes(base.hourly.gross, taxRate),
+		daily: calculateNetAndTaxes(base.daily.gross, taxRate),
+		monthly: calculateNetAndTaxes(base.monthly.gross, taxRate),
+		yearly: calculateNetAndTaxes(base.yearly.gross, taxRate),
+		taxes: {
+			yearly: base.yearly.gross - (base.yearly.gross * (1 - taxRate)),
+			monthly: base.monthly.gross - (base.monthly.gross * (1 - taxRate)),
+		}
+	}
+}
+
+const generateTableFromSummary = (summaryData: Summary, label: string) => {
 	return [
 		{
 			type: 'Hourly',
-			value: tooltipWithVariantTaxes('perHour', 'perHourWithoutTaxes', summary),
+			value: tooltipValue(summaryData.hourly.gross, summaryData.hourly.net),
 		},
 		{
 			type: 'Daily',
-			value: tooltipWithVariantTaxes('perDay', 'perDayWithoutTaxes', summary),
+			value: tooltipValue(summaryData.daily.gross, summaryData.daily.net),
 		},
 		{
 			type: 'Monthly',
-			value: tooltipWithVariantTaxes('perMonth', 'perMonthWithoutTaxes', summary),
+			value: tooltipValue(summaryData.monthly.gross, summaryData.monthly.net),
 		},
 		{
 			type: 'Yearly',
-			value: tooltipWithVariantTaxes('perYear', 'perYearWithoutTaxes', summary),
-		},
-		// {
-		// 	type: 'Taxes year/month',
-		// 	value: {
-		// 		tooltip: `Based on ${currentPreset.taxRate}%`,
-		// 		text: `${formatPriceLocally(summary.value.taxesPerYear)} / ${formatPriceLocally(summary.value.taxesPerYear)}`
-		// 	},
-		// }
+			value: tooltipValue(summaryData.yearly.gross, summaryData.yearly.net),
+		}
 	]
+}
+
+const tooltipValue = (label: number, value: number) => {
+	return {
+		text: formatPrice(value, decimals.value, currentPreset.currency),
+		tooltip: formatPrice(label, decimals.value, currentPreset.currency),
+		description: '',
+	}
+}
+
+const summary = computed(() => {
+	const perDay = hourlyRate.value * currentPreset.workingHours
+	const perHour = hourlyRate.value
+	const perMonth = hourlyRate.value * currentPreset.workingDays * currentPreset.workingHours
+	const perYear = perMonth * currentPreset.monthsInYear
+
+	const base = {
+		hourly: {
+			gross: perHour,
+			net: perHour,
+		},
+		daily: {
+			gross: perDay,
+			net: perDay,
+		},
+		monthly: {
+			gross: perMonth,
+			net: perMonth,
+		},
+		yearly: {
+			gross: perYear,
+			net: perYear,
+		}
+	}
+
+	return {
+		base,
+		freelance: generatePresetFromBase(base, currentPreset.taxes.freelance),
+		employee: generatePresetFromBase(base, currentPreset.taxes.employee)
+	}
 })
 
-const summaryFreelanceTable = computed(() => {
+const sections = computed(() => {
+	const baseTable = generateTableFromSummary(summary.value.base, 'Base')
+	const freelanceTable = generateTableFromSummary(summary.value.freelance, 'Freelancer')
+	const employeeTable = generateTableFromSummary(summary.value.employee, 'Employee')
+
 	return [
 		{
-			type: 'Hourly',
-			value: tooltipWithVariantTaxes('perHour', 'perHourWithoutTaxes', summaryFreeLancer),
+			key: 'summary',
+			label: 'Summary',
+			description: 'Gross Income',
+			table: baseTable,
 		},
 		{
-			type: 'Daily',
-			value: tooltipWithVariantTaxes('perDay', 'perDayWithoutTaxes', summaryFreeLancer),
+			key: 'freelancer',
+			label: 'Freelancer',
+			description: `Prices after taxes ${currentPreset.taxes.freelance}%`,
+			table: freelanceTable
 		},
 		{
-			type: 'Monthly',
-			value: tooltipWithVariantTaxes('perMonth', 'perMonthWithoutTaxes', summaryFreeLancer),
-		},
-		{
-			type: 'Yearly',
-			value: tooltipWithVariantTaxes('perYear', 'perYearWithoutTaxes', summaryFreeLancer),
-		},
-		{
-			type: 'Taxes year/month',
-			value: {
-				tooltip: `Based on ${currentPreset.taxes.freelance}%`,
-				text: `${formatPriceLocally(summaryFreeLancer.value.taxesPerYear)} / ${formatPriceLocally(summaryFreeLancer.value.taxesPerMonth)}`
-			},
+			key: 'employee',
+			label: 'Employee',
+			description: `Prices after taxes ${currentPreset.taxes.employee}%`,
+			table: employeeTable,
 		}
 	]
 })
@@ -266,13 +268,13 @@ const summaryFreelanceTable = computed(() => {
 			</template>
 			<template #default>
 				<div class="grid grid-cols-1 gap-y-4">
-					<!-- Salary -->
+					<!-- Form -->
 					<u-form-group
 						:label="`Income`"
 						required
 					>
 						<template #help>
-							Input your income and select what type of income is to calculate
+							Your current GROSS income, hourly, monthly or yearly
 						</template>
 						<template #default>
 							<div class="grid grid-cols-1 gap-y-2">
@@ -331,7 +333,7 @@ const summaryFreelanceTable = computed(() => {
 							<template #default>
 								<div class="grid grid-cols-1 sm:grid-cols-2 gap-x-1 gap-y-2">
 									<u-input
-										v-model="currentPreset.totalPaymentMonthsForDependent"
+										v-model="currentPreset.totalPaymentMonthsForEmployee"
 										type="number"
 										min="1"
 										max="20"
@@ -375,113 +377,45 @@ const summaryFreelanceTable = computed(() => {
 				</div>
 			</template>
 			<template #footer>
-				<div class="grid grid-cols-1 gap-y-2">
-					<p class="text-center text-md">
-						Summary
-					</p>
-					<p class="text-center text-xs -mt-2- text-gray-500">
-						{{ isShowingWithTaxes ? 'Prices Before Taxes' : 'Prices after taxes' }}
-					</p>
-					<u-table
-						:rows="summaryTable"
-						:ui="{
-							divide: 'divide-none',
-							thead: 'hidden',
-							td: {
-								padding: 'py-1 px-2'
-							}
-						}"
-					>
-						<template #value-data="{ row }">
-							<div class="text-right w-full">
-								<u-tooltip :popper="{ arrow: true }">
-									<template #default>
-										{{ row.value.text }}
-									</template>
-									<template #text>
-										<span
-											v-if="row.value.tooltip"
-											class="text-gray-500 dark:text-gray-400"
-										>{{ row.value.tooltip }}</span>
-									</template>
-								</u-tooltip>
-							</div>
-						</template>
-					</u-table>
-
-					<p class="text-center text-md">
-						Freelancer
-					</p>
-					<p class="text-center text-xs -mt-2- text-gray-500">
-						{{ isShowingWithTaxes ? 'Prices Before Taxes' : 'Prices after taxes' }}
-					</p>
-					<u-table
-						:rows="summaryFreelanceTable"
-						:ui="{
-							divide: 'divide-none',
-							thead: 'hidden',
-							td: {
-								padding: 'py-1 px-2'
-							}
-						}"
-					>
-						<template #value-data="{ row }">
-							<div class="text-right w-full">
-								<u-tooltip :popper="{ arrow: true }">
-									<template #default>
-										{{ row.value.text }}
-									</template>
-									<template #text>
-										<span
-											v-if="row.value.tooltip"
-											class="text-gray-500 dark:text-gray-400"
-										>{{ row.value.tooltip }}</span>
-									</template>
-								</u-tooltip>
-							</div>
-						</template>
-					</u-table>
-
-					<p class="text-center text-md">
-						Employee
-					</p>
-					<p class="text-center text-xs -mt-2- text-gray-500">
-						{{ isShowingWithTaxes ? 'Prices Before Taxes' : 'Prices after taxes' }}
-					</p>
-					<u-table
-						:rows="summaryTable"
-						:ui="{
-							divide: 'divide-none',
-							thead: 'hidden',
-							td: {
-								padding: 'py-1 px-2'
-							}
-						}"
-					>
-						<template #value-data="{ row }">
-							<div class="text-right w-full">
-								<u-tooltip :popper="{ arrow: true }">
-									<template #default>
-										{{ row.value.text }}
-									</template>
-									<template #text>
-										<span
-											v-if="row.value.tooltip"
-											class="text-gray-500 dark:text-gray-400"
-										>{{ row.value.tooltip }}</span>
-									</template>
-								</u-tooltip>
-							</div>
-						</template>
-					</u-table>
-
-					<u-button
-						class="text-center flex items-center justify-center"
-						@click.prevent="isShowingWithTaxes = !isShowingWithTaxes"
-					>
-						{{ isShowingWithTaxes ? 'Show After Taxes' : 'Show Before Taxes' }}
-					</u-button>
-				</div>
+				<u-tabs
+					:items="sections"
+					class="w-full"
+				>
+					<template #item="{ item }">
+						<p
+							v-if="item.description"
+							class="text-center text-xs -mt-2- text-gray-500"
+						>
+							{{ item.description }}
+						</p>
+						<u-table
+							:rows="item.table"
+							:ui="{
+								divide: 'divide-none',
+								thead: 'hidden',
+								td: {
+									padding: 'py-1 px-2'
+								}
+							}"
+						>
+							<template #value-data="{ row }">
+								<div class="text-right w-full">
+									<u-tooltip :popper="{ arrow: true }">
+										<template #default>
+											{{ row.value.text }}
+										</template>
+										<template #text>
+											<span
+												v-if="row.value.tooltip"
+												class="text-gray-500 dark:text-gray-400 cursor-pointer"
+											>{{ row.value.tooltip }}</span>
+										</template>
+									</u-tooltip>
+								</div>
+							</template>
+						</u-table>
+					</template>
+				</u-tabs>
 			</template>
 		</u-card>
 	</div>
